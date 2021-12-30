@@ -18,7 +18,7 @@ class _GamePageState extends State<GamePage> {
   late int upperBoundX, upperBoundY, lowerBoundX, lowerBoundY;
   late double screenwidth, screenHeight;
   int step = 20;
-  int length = 7;
+  int length = 4;
   int score = 0;
   double speed = 1.0;
   Offset? foodPosition = null;
@@ -56,7 +56,18 @@ class _GamePageState extends State<GamePage> {
     });
   }
 
+  Direction getRandomDirection() {
+    int val = Random().nextInt(4);
+    direction = Direction.values[val];
+    return direction;
+  }
+
   void restart() {
+    length = 4;
+    speed = 1;
+    score = 0;
+    positions = [];
+    direction = getRandomDirection();
     changeSpeed();
   }
 
@@ -83,7 +94,7 @@ class _GamePageState extends State<GamePage> {
     return position;
   }
 
-  void draw() {
+  void draw() async {
     if (positions.length == 0) {
       positions.add(getRandomPosition());
     }
@@ -96,7 +107,47 @@ class _GamePageState extends State<GamePage> {
       positions[i] = positions[i - 1];
     }
 
-    positions[0] = getNextPosition(positions[0])!;
+    positions[0] = (await getNextPosition(positions[0]))!;
+  }
+
+  void showGameOverDialog() {
+    showDialog(
+        barrierDismissible: false,
+        context: context,
+        builder: (ctx) {
+          return AlertDialog(
+              backgroundColor: Colors.red,
+              shape: const RoundedRectangleBorder(
+                side: BorderSide(
+                  color: Colors.blue,
+                  width: 3.0,
+                ),
+                borderRadius: BorderRadius.all(Radius.circular(10.0)),
+              ),
+              title: const Text(
+                "Game Over",
+                style: TextStyle(color: Colors.white),
+              ),
+              content: Text(
+                "Your game is over but you played well. Your score is" +
+                    score.toString() +
+                    ".",
+                style: const TextStyle(color: Colors.white, fontSize: 20),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () async {
+                    Navigator.of(context).pop();
+                    restart();
+                  },
+                  child: const Text("Restart",
+                      style: TextStyle(
+                          fontSize: 24,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold)),
+                ),
+              ]);
+        });
   }
 
   bool detectCollision(Offset position) {
@@ -112,7 +163,7 @@ class _GamePageState extends State<GamePage> {
     return false;
   }
 
-  Offset? getNextPosition(Offset position) {
+  Future<Offset?> getNextPosition(Offset position) async {
     Offset nextPosition;
     if (direction == Direction.right) {
       nextPosition = Offset(position.dx + step, position.dy);
@@ -126,6 +177,13 @@ class _GamePageState extends State<GamePage> {
       return null;
     }
 
+    if (detectCollision(position) == true) {
+      if (timer != null && timer!.isActive) {
+        timer!.cancel();
+      }
+      await Future.delayed(
+          Duration(milliseconds: 200), () => showGameOverDialog());
+    }
     return nextPosition;
   }
 
